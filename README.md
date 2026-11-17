@@ -17,7 +17,7 @@ and hand-built components.
 Once per computer (needs Claude Code, Node 18+ and access to `@epam/ai-dial-ui-kit` on npm):
 
 ```
-claude plugin marketplace add <owner>/<repo>
+claude plugin marketplace add YMatviiko/dial-design-plugin
 claude plugin install dial-design@dial-design
 ```
 
