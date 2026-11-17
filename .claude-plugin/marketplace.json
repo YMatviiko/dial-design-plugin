@@ -1,0 +1,15 @@
+{
+  "name": "dial-design",
+  "description": "DIAL design system 2.0 skills for Claude Code",
+  "owner": {
+    "name": "EPAM"
+  },
+  "plugins": [
+    {
+      "name": "dial-design",
+      "source": "./plugins/dial-design",
+      "description": "Build UI with @epam/ai-dial-ui-kit: production React code (dial-design-vibecode) and throwaway HTML prototypes (dial-html-prototype), both starting from DIAL page patterns.",
+      "version": "2.0.0"
+    }
+  ]
+}

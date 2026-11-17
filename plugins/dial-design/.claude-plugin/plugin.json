@@ -1,0 +1,10 @@
+{
+  "name": "dial-design",
+  "displayName": "DIAL Design",
+  "version": "2.0.0",
+  "description": "Build UI with @epam/ai-dial-ui-kit 2.0: production React code (dial-design-vibecode) and throwaway HTML prototypes (dial-html-prototype). Both start every screen from a DIAL page pattern, use only real 2.0 kit components and run a validator.",
+  "author": {
+    "name": "EPAM"
+  },
+  "keywords": ["dial", "design-system", "ui-kit", "react", "html", "prototype"]
+}
