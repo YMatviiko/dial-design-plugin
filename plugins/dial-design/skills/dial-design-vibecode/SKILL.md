@@ -20,7 +20,8 @@ This skill shares a core with `dial-html-prototype`. `<core>` below means `${CLA
 | `<core>/layouts.md` | **Read before any new screen.** DIAL screen rules, picking a pattern, CardShell, plain layout |
 | [`react.md`](react.md) (next to this file) | How to read a pattern template as JSX; which template parts not to port |
 | `<core>/recipes.md` | Which component for what, with props (JSON ↔ JSX) |
-| `<core>/foundations.md` | Colour tokens, typography, pairings, legacy tokens, raw values |
+| `<core>/foundations.md` | Colour tokens (light and dark values), typography, pairings, legacy tokens, raw values |
+| `<core>/themes.md` | Light/dark/system: how theming works, the rules, the setup recipe for standalone apps |
 
 `K` below is shorthand for `node "${CLAUDE_SKILL_DIR}/../../core/kit-lookup.mjs"`, run from the project root. It reads
 the kit installed in this project. **Type the full command every time, one command per Bash call.** Claude Code blocks or asks permission for shell
@@ -36,6 +37,8 @@ turns or a permission prompt. To look up several components, pass them all to on
 | Its props, enum types and the kit's own examples | `K info <Name> [<Name> …]` |
 | What a prop's type contains (`DropdownItem` fields, `MenuItemMark` members) | `K type <Name> [<Name> …]` (`K type ""` lists all) |
 | Whether a utility class exists, and what it does | `K classes '<regex>'` |
+| A theme token's light and dark value; kit tokens a theme lacks | `K theme token <name> […]`, `K theme check` |
+| Light/dark/system for a standalone app: write the recipe into the project | `K theme recipe` (`src/theme/`, `public/`) |
 
 **Never run `K update`, `K render` or `K grid` in a product repo** — they are for HTML prototypes (`update` adds
 react/jsdom to the folder). **Never use `rg`/`grep`/`find`/`ls`/`cat` inside `node_modules` to discover components or types**:
@@ -62,6 +65,11 @@ session restart.
    - Install fails (registry, permissions) → stop and show the actual error.
 3. If the output has a `note:` that the patterns were checked with a different kit, mention it once: layouts still
    apply; the validator flags any class the kit dropped.
+4. **Theme handling**: find out once whether the app already applies the DIAL themes — DIAL Chat does; otherwise
+   search the project for a theme provider writing `--bg-layer-*` properties, `THEMES_CONFIG_HOST`, or
+   `DialThemeProvider`. If a standalone app (e.g. Model Garden) has none, say so in the mapping plan and offer the
+   recipe from `<core>/themes.md`; when asked for it, write it with `K theme recipe` (never copy or retype the files).
+   Never add it unasked: it changes the app shell.
 
 ## Non-negotiable rules
 
@@ -109,6 +117,10 @@ session restart.
 10. **Only kit classes and tokens** (`<core>/foundations.md`): no hex, `rgb()`, named colours, or px/rem spacing;
     no legacy 1.0 tokens (`bg-layer-0…4`, `text-accent-primary`…). An exact layout size from the design may be a
     numeric style (`style={{ width: 336 }}`) when the kit has no class. Check unknown classes with `K classes`.
+10a. **Every screen works in light and dark** (`<core>/themes.md`): colour only through kit token classes; never pick
+    styles by theme (`isDark ? …`); no `dark:` classes, own `prefers-color-scheme` styles or fixed colours
+    (`text-white`, `bg-[#…]`); logos come in light and dark versions; a part of the screen in another theme wraps
+    itself in `ThemeScope` so its overlays follow.
 
 **Gates**
 
@@ -156,7 +168,9 @@ session restart.
    ```
    (Linux: `google-chrome` / `chromium`.) Check: it has the pattern's structure; nothing overflows a card or column;
    text and badges of the same kind have the same size; buttons haven't stretched; nothing is unstyled or invisible.
-   Fix and repeat 4–5, then stop the dev server. If you can't run it, say you didn't check the page visually.
+   **Then the dark theme**: the same screenshot with `?theme=dark` (the DIAL recipe and DIAL Chat's preload read it;
+   otherwise use the app's own theme switch). Check nothing disappears or keeps a light colour (logos, icons,
+   borders). Fix and repeat 4–5, then stop the dev server. If you can't run it, say you didn't check the page visually.
 6. Present the diff + validator result, including any "raw HTML — last resort" flag and log row (rule 12). Say which
    pattern the screen follows.
 7. **Before committing**: `node "${CLAUDE_SKILL_DIR}/validate.mjs" --mode pre-commit` (rule 13a).
@@ -168,10 +182,12 @@ session restart.
 Changed `.tsx`/`.jsx` files against the installed kit:
 - **errors**: a `Dial*` (1.0) component; a kit import that isn't in the manifest; a quoted hex colour; raw px in
   `style={{}}`; a legacy 1.0 token; a hand-built kit component (CardShell look, `bg-backdrop`,
-  `bg-control-inverted`, a filled accent control); a `dial-kit-*` internal class; a class that's in neither the
-  kit CSS nor the project's own CSS.
+  `bg-control-inverted`, a filled accent control); a `dial-kit-*` internal class; a theme-breaking class (a kit
+  class with a fixed colour like `text-white`, `bg-[#…]`, a `dark:` variant); a class that's in neither the kit CSS
+  nor the project's own CSS.
 - **warnings**: a prop the manifest doesn't list (it misses some inherited props); unknown classes when the project
-  runs its own Tailwind (they may be generated there).
+  runs its own Tailwind (they may be generated there); styles picked by theme (`isDark ? …`); a logo `<img>` with no
+  dark version; an own dark block (`prefers-color-scheme`, `.dark`) in a changed stylesheet.
 
 ## Kit upgrades
 

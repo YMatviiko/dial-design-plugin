@@ -5,29 +5,31 @@ Shared by both DIAL skills. True in plain HTML and in React: these are kit utili
 
 ## Colour tokens (2.0)
 
-Each is `<prefix>-<name>`. Light values shown for orientation only; never type them.
+Each is `<prefix>-<name>`. Values are from the saved DIAL themes (`kit-lookup.mjs theme token <name>`), shown for
+orientation only — never type them: the class switches with the theme (`<core>/themes.md`). `border-*` classes read
+the `stroke-*` tokens.
 
-| Role | Class | Light value |
-|---|---|---|
-| Page background | `bg-layer-base` | #F5F7FA |
-| Card / panel / popup / input surface | `bg-layer-raised` | #FCFCFC |
-| Inset area, zebra rows, disabled fields, count badges | `bg-layer-sunken` | #EEF1F7 |
-| Modal backdrop (comes with Popup / SideDrawer; don't paint it yourself) | `bg-backdrop` | #161B2D at 30% |
-| Main text | `text-primary` | #161B2D |
-| Secondary text, labels, hints, captions, icons | `text-secondary` | #57647A |
-| Accent text, links, selected items | `text-accent` | #1D4ED8 |
-| Status text | `text-error` `text-success` `text-warning` `text-info` | |
-| Text on a filled accent/danger control | `text-control-permanent` | #FCFCFC |
-| Text on `bg-control-inverted` (tooltip only) | `text-control-inverted` | #FCFCFC |
-| Filled accent control | `bg-control-accent` | #1D4ED8 |
-| Soft accent tint (selected row/item) | `bg-control-accent-alpha` | |
-| Hover tint | `hover:bg-control-accent-alpha-hover` | |
-| Status backgrounds | `bg-info` `bg-success` `bg-warning` `bg-error` | |
-| Dividers, table lines, panel borders | `border-tertiary` | #E0E6F0 |
-| Field borders | `border-secondary` | #D1DBEA |
-| Outlined control border | `border-default` | #B2C2DD |
-| Accent border (selected, highlighted) | `border-accent` | #1D4ED8 |
-| Strong border (rare; not for fields) | `border-primary` | #57647A |
+| Role | Class | Light | Dark |
+|---|---|---|---|
+| Page background | `bg-layer-base` | #F5F7FA | #10151E |
+| Card / panel / popup / input surface | `bg-layer-raised` | #FCFCFC | #1B212D |
+| Inset area, zebra rows, disabled fields, count badges | `bg-layer-sunken` | #EEF1F7 | #242A38 |
+| Modal backdrop (comes with Popup / SideDrawer; don't paint it yourself) | `bg-backdrop` | #161B2D4D | #070813CC |
+| Main text | `text-primary` | #1B212D | #FCFCFC |
+| Secondary text, labels, hints, captions, icons | `text-secondary` | #57647A | #ACB3C3 |
+| Accent text, links, selected items | `text-accent` | #1D4ED8 | #6E8AF7 |
+| Status text | `text-error` `text-success` `text-warning` `text-info` |  |  |
+| Text on a filled accent/danger control | `text-control-permanent` | #FCFCFC | #FCFCFC |
+| Text on `bg-control-inverted` (tooltip only) | `text-control-inverted` | #FCFCFC | #1B212D |
+| Filled accent control | `bg-control-accent` | #1D4ED8 | #6E8AF7 |
+| Soft accent tint (selected row/item) | `bg-control-accent-alpha` | #2764D90F | #2764D924 |
+| Hover tint | `hover:bg-control-accent-alpha-hover` | #2764D924 | #2764D933 |
+| Status backgrounds | `bg-info` `bg-success` `bg-warning` `bg-error` |  |  |
+| Dividers, table lines, panel borders | `border-tertiary` | #E0E6F0 | #2E3647 |
+| Field borders | `border-secondary` | #D1DBEA | #404A5E |
+| Outlined control border | `border-default` | #B2C2DD | #2E3647 |
+| Accent border (selected, highlighted) | `border-accent` | #1D4ED8 | #6E8AF7 |
+| Strong border (rare; not for fields) | `border-primary` | #57647A | #848E9C |
 
 Entity/type colours (catalog type labels, avatar tints) use the kit palette pairs, e.g. `bg-blue text-blue`,
 `bg-violet-1 text-violet-2`, `bg-green-1 text-green-2` — see the `catalog` pattern. Prefer the component that

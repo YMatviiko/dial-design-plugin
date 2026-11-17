@@ -35,7 +35,20 @@ export function loadKitCss(cssPath) {
   const selectorsOnly = css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/url\([^)]*\)/g, '').replace(/\{[^{}]*\}/g, '{}').replace(/@[^{;]*/g, '');
   const classes = new Set([...selectorsOnly.matchAll(/\.((?:\\.|[A-Za-z0-9_-])+)/g)].map((m) => m[1].replace(/\\(.)/g, '$1')));
   const vars = new Set([...css.matchAll(/--[\w-]+/g)].map((m) => m[0]));
-  return { classes, vars };
+  // Classes that paint a fixed colour (a raw value outside var(--token, …)): they look the same in every theme,
+  // so they break the light/dark switch. Transparent and the kit's own internals (dial-*, editor, grid) are fine.
+  const fixedColour = new Set();
+  const flat = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const m of flat.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const body = m[2].replace(/var\([^()]*(\([^()]*\))?[^()]*\)/g, '');
+    const colours = [...body.matchAll(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|oklch\([^)]*\)|hsla?\([^)]*\)/gi)].map((x) => x[0].toLowerCase());
+    if (!colours.length || colours.every((c) => /^#0000(0000)?$|^rgba?\([^)]*,\s*0\)$/.test(c))) continue;
+    for (const c of m[1].matchAll(/\.((?:\\.|[\w-])+)/g)) {
+      const n = c[1].replace(/\\(.)/g, '$1');
+      if (!/^([a-z-]+:)*(dial-|ag-|w-md-editor|wmde-)/.test(n)) fixedColour.add(n);
+    }
+  }
+  return { classes, vars, fixedColour };
 }
 
 // Known gaps in the pruned kit build, with what to use instead.
@@ -123,12 +136,24 @@ export function handBuilt(classList, scope) {
   return null;
 }
 
-// One class list -> findings [{ level, rule, cls, msg }]. Options: kitClasses (Set), scope ('html'|'react'),
-// unknownLevel ('error' | 'warning' — React projects with their own Tailwind get warnings).
-export function checkClassList(classList, { kitClasses, scope, unknownLevel = 'error', where = '' }) {
+// Theme-breaking classes: they paint the same colour in light and dark.
+const ARBITRARY_COLOUR = /^([a-z-]+:)*(bg|text|border(-[trblxyse])?|ring|ring-offset|fill|stroke|from|via|to|shadow|outline|decoration|divide|placeholder|caret|accent)-\[(#|rgb|hsl|oklch|color)/i;
+export function themeBreaking(cls, fixedColour) {
+  if (/(^|:)dark:/.test(cls) || cls.startsWith('dark:'))
+    return 'a dark: variant — the kit has none; light and dark come from the theme tokens, so the plain token class already switches';
+  if (ARBITRARY_COLOUR.test(cls)) return 'a fixed colour — it stays the same in light and dark; use a kit token class';
+  if (fixedColour?.has(cls)) return 'a kit class with a fixed colour — it stays the same in light and dark; use a kit token class (foundations.md)';
+  return null;
+}
+
+// One class list -> findings [{ level, rule, cls, msg }]. Options: kitClasses (Set), fixedColour (Set, from
+// loadKitCss), scope ('html'|'react'), unknownLevel ('error' | 'warning' — React projects with their own Tailwind).
+export function checkClassList(classList, { kitClasses, fixedColour, scope, unknownLevel = 'error', where = '' }) {
   const out = [];
   for (const cls of classList) {
     if (isIconClass(cls)) continue;
+    const tb = themeBreaking(cls, fixedColour);
+    if (tb) { out.push({ level: 'error', rule: 'theme-breaking', cls, msg: `"${cls}"${where} is ${tb}.` }); continue; }
     const leg = legacyToken(cls);
     if (leg) { out.push({ level: 'error', rule: 'legacy-token', cls, msg: `"${cls}"${where} is a legacy 1.0 token — use ${leg}.` }); continue; }
     // dial-kit-* classes are the kit components' internals: in React, use the component (in HTML they come from render).

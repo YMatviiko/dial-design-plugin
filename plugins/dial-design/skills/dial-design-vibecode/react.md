@@ -30,6 +30,13 @@ which is exactly what you must **not** copy into JSX.
 | The sort `GhostButton` (`arrows-sort` + chevron) in a toolbar | the trigger of a `Dropdown`: sort options as items, `mark: MenuItemMark.Check`, `checked` on the current one; the button label is the current sort |
 | Card/row text in a list that has a `Search` | `<Highlight text={…} query={query} maxLines={…} />` instead of plain text (replaces `line-clamp-*`), so matches are marked |
 
+## Theme: what the template's theme block becomes
+
+Every template has `<!-- kit-theme -->` (the DIAL light/dark values + a toggle for the static page). In React it
+becomes nothing in the page: the app applies the theme (DIAL Chat does; a standalone app uses the recipe in
+`<core>/themes.md`). Asset pairs (`data-theme-only="light"` / `"dark"`) become one themed image:
+`image('chat-logo')` from `useDialTheme()`, or the app's own theme context. Kit token classes need no change.
+
 ## Static stand-ins: don't port them
 
 Some template parts exist only because a static page can't run React. In React use the real component:

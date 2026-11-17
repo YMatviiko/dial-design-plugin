@@ -21,7 +21,8 @@ This skill shares a core with `dial-design-vibecode`. `<core>` below means `${CL
 | File | What's in it |
 |---|---|
 | `<core>/layouts.md` | **Read first.** DIAL screen rules, how to pick a pattern, CardShell for cards, plain layout |
-| `<core>/foundations.md` | Colour tokens, typography, pairings, legacy tokens, raw values |
+| `<core>/foundations.md` | Colour tokens (light and dark values), typography, pairings, legacy tokens, raw values |
+| `<core>/themes.md` | Light/dark/system: how theming works, the rules, the setup recipe for standalone apps |
 | `<core>/recipes.md` | Which component for what, with props |
 | [`html.md`](html.md) (next to this file) | HTML only: props-JSON syntax, page skeleton, kit CSS gaps, overlays in a section, live Grid, static tooltip, status pills |
 | `<core>/patterns/README.md` | Template syntax (`include`, `render`, `wrap`, `icon`, `asset`, `kit-grid`) |
@@ -47,6 +48,8 @@ turns or a permission prompt. To look up several components, pass them all to on
 | A standalone icon | `K icon <tabler-name> [16\|20\|24]` (add `-filled` for the filled style) |
 | A DIAL brand asset (logo, gradient icons, model icon) | `K asset <name> [height]` |
 | The stylesheet `<link>` to paste | `K version` |
+| **The light/dark theme block** + toggle (patterns have it as `<!-- kit-theme -->`) | `K theme block` |
+| A theme token's light and dark value | `K theme token <name> […]` |
 | **A data table**: the kit's Grid 2.0, live (AG Grid + kit theme) | `K grid` (or `<!-- kit-grid -->` in a template) |
 
 These are the only sanctioned ways to read the kit: don't `grep`/`find` inside `node_modules`.
@@ -67,8 +70,11 @@ memory. No MCP server or session restart is needed.
 2. **Start from the closest DIAL page pattern** (`K patterns`, then `K pattern <name> --source`). Never invent an
    app shell, header, navigation, composer or card. With no fitting pattern, start from the page skeleton in
    `html.md` and follow `<core>/layouts.md`.
-3. **Light theme only.** Use the kit's built-in light values. Don't declare CSS variables (`--x: …`) or add any
-   theme override. If someone asks for dark mode, say the prototype skill builds light only.
+3. **Light and dark come from the theme block.** Every pattern has `<!-- kit-theme -->` in `<head>`: the real DIAL
+   light and dark values, a toggle, and `?theme=dark` / `?theme=system`. Keep it (a page without a template gets it
+   from `K theme block`). Don't declare CSS variables or theme overrides yourself, don't edit the block, and follow
+   `<core>/themes.md`: no fixed colours (`text-white`, hex), no own dark styles. Brand art with a `-dark` twin
+   switches by itself when it comes from an `asset` marker.
 4. **Every kit component comes from `K render` (or a `render`/`wrap` marker), pasted as printed.** Don't write
    component markup by hand, don't copy a component's classes onto your own element, don't trim its classes, don't
    copy markup from an older prototype (the kit changes between versions). Read the `note:` lines. The one
@@ -119,9 +125,10 @@ memory. No MCP server or session restart is needed.
    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars --window-size=1440,900 --virtual-time-budget=5000 --screenshot=/tmp/proto.png file:///abs/path/page.html
    ```
    (Linux: `google-chrome` / `chromium`.) Check that nothing is unstyled or invisible, buttons haven't stretched
-   across a column, text doesn't overflow a card, and the page still looks like the pattern it came from. Fix and
-   repeat 5–6. If no browser is available, say you couldn't check it visually.
-7. Tell the person how to open it (double-click the file), the kit version, which pattern it started from, what is
+   across a column, text doesn't overflow a card, and the page still looks like the pattern it came from. **Then
+   dark**: the same command with `file:///abs/path/page.html?theme=dark&toggle=off` — check nothing disappears or keeps
+   a light colour. Fix and repeat 5–6. If no browser is available, say you couldn't check it visually.
+7. Tell the person how to open it (double-click the file; the button bottom-right switches light/dark), the kit version, which pattern it started from, what is
    approximate, and which real components it uses.
 
 ## Handoff

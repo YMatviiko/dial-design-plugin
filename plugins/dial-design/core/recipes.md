@@ -43,6 +43,8 @@ Always confirm props with `kit-lookup.mjs info <Name>`: it lists them with enum 
 | Data table | `Grid` (AG Grid with the kit theme): `columnDefs`, `rowData`, `selection` |
 | Tooltip | `Tooltip` around the trigger |
 | Steps of a flow | `Steps` |
+| Theme choice (light / dark / system) in settings | `Select` with Light, Dark, System, as in the `settings` pattern; wired to the app's theme (`useDialTheme().setMode` with the recipe in `themes.md`) |
+| A panel in a different theme than the page | redefine the tokens with a class on its root and wrap it in `ThemeScope {"className":"…"}` so its overlays follow |
 
 Anything else: `search`, then `info`. **Search before hand-building anything**: every kit release adds
 components (0.15: `Badge`, `Avatar`, `SideDrawer`, `BottomSheet`; 0.16: `ToggleChip`, `FormSection`,

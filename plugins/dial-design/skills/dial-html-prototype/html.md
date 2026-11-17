@@ -58,6 +58,7 @@ appears on interaction (try `"open":true`) or needs props you didn't pass (`info
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
   <!-- exact line from: node <core>/kit-lookup.mjs version -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@epam/ai-dial-ui-kit@VERSION/dist/index.css">
+  <!-- light/dark themes + toggle: in a template <!-- kit-theme -->; otherwise paste: node <core>/kit-lookup.mjs theme block -->
   <style>
     html, body { height: 100%; }
     body { font-family: Inter, system-ui, sans-serif; }

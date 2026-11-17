@@ -4,6 +4,48 @@ Versioning (semver): **patch** = wording or pattern fix · **minor** = new patte
 change that can block work that used to pass (e.g. a stricter validator). Each entry names the
 `@epam/ai-dial-ui-kit` version it was checked with.
 
+## 3.0.0 — 2026-11-17
+
+Light and dark themes. Checked with `@epam/ai-dial-ui-kit` 0.16.4 and ai-dial-chat-themes @ 44c8ea1.
+Major: the validators now fail classes they used to accept (fixed colours, `dark:` variants).
+
+### Shared core
+- **Saved copy of the DIAL themes** (`core/themes/config.json` from epam/ai-dial-chat-themes, with `SOURCE.json`).
+- **`core/themes.md`**: how theming works (tokens on `<html>`, light/dark/system), the rules, where it's set up.
+- **`kit-lookup.mjs theme`**: `token` (light and dark value), `check` (kit tokens a theme doesn't define, kit classes
+  with fixed colours), `css`, `json`, `block` (prototype theme block), `recipe` (standalone-app files into a project), `update` (maintainers: refresh the saved copy).
+- **`foundations.md`**: the token table shows light and dark values from the saved themes (it showed kit fallbacks,
+  which differ from the light theme for 14 tokens, e.g. `text-primary`).
+- **Validator rule `theme-breaking`** (both skills, error): kit classes with a fixed colour (worked out from the kit
+  CSS: `text-white`, `text-red-500`, `ring-sky-400`, `border-[#F4CE46]` in 0.16.4), `bg-[#…]`-style colour classes,
+  and `dark:` variants.
+- **Dark assets**: `dial-chat-logo-dark`, `nav-new-chat-dark`, `chat-status-dark`; product logos in both versions from
+  the themes repo (`model-garden-logo`, `launchpad-logo`, `admin-logo`).
+- **Recipe for standalone apps** (`core/themes/react/`): `dial-theme.ts`, `DialThemeProvider.tsx` (`useDialTheme`:
+  mode, themeId, setMode, image), `theme-init.js` (no light flash on reload). Same mechanism as DIAL Chat;
+  `?theme=dark` previews. `kit-lookup.mjs theme recipe` writes it into a project (the live test agent couldn't copy files
+  out of the plugin folder and retyped them).
+
+### dial-design-vibecode
+- Rule 10a: every screen works in light and dark; `ThemeScope` for a part of the screen in another theme.
+- Setup Check step 4: finds out whether the app applies the DIAL themes; offers the recipe to standalone apps.
+- "Look at it" also screenshots `?theme=dark`.
+- Validator warnings: styles picked by theme (`isDark ? …`), a logo `<img>` with no dark version, an own dark block in
+  a changed stylesheet. Fixed: project components named `Dial*` were reported as 1.0 kit components.
+
+### dial-html-prototype
+- **`<!-- kit-theme -->`** in every pattern: the real light and dark values, a toggle (bottom-right), `?theme=dark`,
+  `?theme=system`, `?toggle=off`. Prototypes now show the production light colours instead of kit fallbacks.
+  `asset` markers with a `-dark` twin switch automatically. The validator checks the block is unedited.
+- Rule 3 is now "light and dark come from the theme block" (was "light theme only"). Workflow screenshots dark too.
+
+### Release check
+- Fails a pattern without `kit-theme` and a token table that doesn't match the saved themes; notes kit tokens a theme
+  doesn't define, weak contrast of key pairs in either theme, and a newer themes config on GitHub. `--screenshots`
+  writes light and dark.
+- Found: both themes lack `shadow-sm-1` / `shadow-md-1`, which the kit reads (part of card shadows keeps its light tint
+  in dark). Reported as a note; a theme-data fix.
+
 ## 2.0.0 — 2026-11-17
 
 First release as one plugin. Merges `dial-design-vibecode` 1.0.1 and `dial-html-prototype` 1.2.0 around a shared core.

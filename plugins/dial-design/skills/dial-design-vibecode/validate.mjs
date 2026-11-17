@@ -9,6 +9,9 @@
 //     rules in core/kit-rules.mjs:
 //       legacy 1.0 token (bg-layer-0…4, text-accent-primary…)            -> error
 //       hand-built copy of a kit component (CardShell look, backdrop…)    -> error
+//       theme-breaking class: kit class with a fixed colour (text-white…), bg-[#…], dark: variants -> error
+//   - theme warnings: styles picked by theme (isDark ? …), a logo <img> with no dark version, and in changed
+//     stylesheets an own dark block (prefers-color-scheme, .dark, [data-theme=dark])
 //       class that is neither in the kit CSS nor in the project's own CSS -> error; warning when the project
 //         runs its own Tailwind (tailwind.config.* or a tailwindcss dependency), where it may be generated
 //   - a prop not in a component's manifest props[] -> warning, only when that list is non-empty.
@@ -66,7 +69,7 @@ const repoRoot = manifestPath.slice(0, manifestPath.indexOf('node_modules'));
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 const componentsByName = new Map(manifest.components.map((c) => [c.name, c]));
 const kit = findKit(repoRoot);
-const { classes: kitClasses } = loadKitCss(kit.cssPath);
+const { classes: kitClasses, fixedColour } = loadKitCss(kit.cssPath);
 
 // The project's own CSS classes count as known (CSS modules, global styles). Skips build output and deps.
 const projectClasses = new Set();
@@ -125,7 +128,9 @@ function targetFiles() {
   return [...new Set([...working, ...untracked])];
 }
 
-const files = targetFiles().filter((f) => /\.(tsx|jsx)$/.test(f));
+const allTargets = targetFiles();
+const files = allTargets.filter((f) => /\.(tsx|jsx)$/.test(f));
+const styleFiles = allTargets.filter((f) => /\.(css|scss|sass|less)$/.test(f));
 
 function readContent(relPath) {
   if (mode === 'pre-commit' && !explicitFiles.length) {
@@ -346,7 +351,12 @@ function checkFile(relPath) {
   for (const tag of findJsxTags(text)) {
     const line = lineOf(text, tag.start);
 
-    if (/^Dial[A-Z]/.test(tag.name)) {
+    // A Dial* tag is a 1.0 kit component only when it comes from the kit: imported from it, or a 1.0 name in the
+    // manifest that the file doesn't define or import from elsewhere (projects have their own Dial* components).
+    const baseName = tag.name.split('.')[0];
+    const definedHere = new RegExp(`(?:function|const|let|var|class)\\s+${baseName}\\b|import[^;]*\\b${baseName}\\b[^;]*from\\s*['"](?!@epam/ai-dial-ui-kit)`).test(text);
+    const kitOneZero = kitLocalNames.has(baseName) || (componentsByName.get(baseName)?.generation === '1.0' && !definedHere);
+    if (/^Dial[A-Z]/.test(baseName) && kitOneZero) {
       addFinding(
         relPath,
         line,
@@ -420,9 +430,19 @@ function checkFile(relPath) {
   }
   for (const { at, value } of classStrings) {
     const list = value.replace(/\$\{[^}]*\}/g, ' ').split(/\s+/).filter((c) => c && !/[${}]/.test(c));
-    for (const f of checkClassList(list, { kitClasses: knownClasses, scope: 'react', unknownLevel: ownTailwind ? 'warning' : 'error' }))
+    for (const f of checkClassList(list, { kitClasses: knownClasses, fixedColour, scope: 'react', unknownLevel: ownTailwind ? 'warning' : 'error' }))
       addFinding(relPath, lineOf(text, at), f.level, f.rule, f.msg);
   }
+
+  // Theme branching: colours must come from tokens, which switch on their own. Choosing a logo by theme is fine.
+  for (const m of text.matchAll(/[^\n]*\b(isDark\w*|isLight\w*|(?:theme|themeId|mode|colorScheme)\s*===?\s*['"\`](?:dark|light)['"\`])[^\n]*/g))
+    if (/className|style=|color|bg-|text-|border-/.test(m[0]) && !/logo|image\(|src=/.test(m[0]))
+      addFinding(relPath, lineOf(text, m.index), 'warning', 'theme-branching',
+        `"${m[1]}" picks styles by theme — kit token classes already switch with the theme (themes.md). Branch only for brand art (logos).`);
+  // A logo image that never changes with the theme: dark logos exist (theme config images *-logo-dark).
+  if (/<img\b[^>]*\b(src|alt)=[^>]*logo/i.test(text) && !/dark|image\(|useDialTheme|themeId/i.test(text))
+    addFinding(relPath, lineOf(text, text.search(/<img\b[^>]*logo/i)), 'warning', 'logo-not-themed',
+      'A logo <img> with no dark version — use the theme\'s images (e.g. image(\'chat-logo\') from useDialTheme, or the app\'s theme context) so it switches with the theme.');
 
   // Real hex-color literals are always the entire content of a quoted string (JS/CSS
   // convention) and exactly 3, 4, 6, or 8 digits long — matching anything looser flags things
@@ -457,6 +477,15 @@ function checkFile(relPath) {
 
 for (const f of files) checkFile(f);
 
+// Changed stylesheets: the theme comes from DIAL's tokens on <html>; an own dark block fights it.
+for (const f of styleFiles) {
+  const text = readContent(f);
+  if (!text) continue;
+  for (const m of text.matchAll(/prefers-color-scheme|\.dark\b[^{]*\{|\[data-theme=["']?dark/g))
+    addFinding(f, lineOf(text, m.index), 'warning', 'own-dark-theme',
+      `"${m[0].replace(/\s*\{$/, '')}" — light/dark come from the DIAL theme tokens (themes.md); kit token classes already switch. Don't restyle for dark yourself.`);
+}
+
 console.log(
   `dial-design-vibecode validator — mode: ${mode}${mode === 'pre-pr' ? ` (base: ${base})` : ''}`,
 );
@@ -467,7 +496,7 @@ console.log(
 );
 console.log(`kit css: ${kitClasses.size} classes; project css: ${projectClasses.size} classes; own Tailwind: ${ownTailwind ? 'yes (unknown classes are warnings)' : 'no'}`);
 console.log(`files checked: ${files.length}`);
-if (!files.length) {
+if (!files.length && !findings.length) {
   console.log('No .tsx/.jsx files in scope. PASS (nothing to check).');
   process.exit(0);
 }

@@ -10,7 +10,9 @@ Two Claude Code skills for building UI with `@epam/ai-dial-ui-kit` (design syste
 Both start every screen from the closest **DIAL page pattern** (23 screens from the DIAL Chat 2.0 Figma files:
 chat, catalog, toolsets, QuickApp, scheduled tasks, file manager, settings, tables), use only real 2.0 kit
 components (a card is `CardShell`, never a copy of its look), and fail a validator on made-up classes, legacy tokens
-and hand-built components.
+and hand-built components. Every screen works in DIAL's **light and dark** themes: both skills use the
+real theme data from [ai-dial-chat-themes](https://github.com/epam/ai-dial-chat-themes), prototypes get a theme toggle,
+and standalone React apps (e.g. Model Garden) get a ready theme provider.
 
 ## Install
 
@@ -55,6 +57,8 @@ plugins/dial-design/
     foundations.md              colour tokens, typography, pairings
     layouts.md                  DIAL screen rules and how to pick a pattern
     recipes.md                  which component for what
+    themes.md, themes.mjs       light/dark/system: rules, theme block, checks
+    themes/                     saved ai-dial-chat-themes config + React theme recipe for standalone apps
     patterns/                   page templates (from Figma) + assets
   skills/dial-design-vibecode/  React skill: SKILL.md, react.md, validate.mjs
   skills/dial-html-prototype/   HTML skill: SKILL.md, html.md, validate-html.mjs
@@ -73,6 +77,7 @@ out", "release the plugin"); the `dial-pattern-maintainer` skill has the steps. 
 | Screen redesigned / new screen | Update or add a pattern from the Figma frame |
 | New "always use component X" rule | Add it to `core/kit-rules.mjs` |
 | New kit release | `node check-release.mjs`; fix what fails |
+| Themes changed in ai-dial-chat-themes | `node plugins/dial-design/core/kit-lookup.mjs theme update`, then `check-release.mjs` |
 
 Release: `node check-release.mjs` must print `OK` → bump the version in `plugin.json` and `marketplace.json` → add a
 `CHANGELOG.md` entry → commit, tag, push. A weekly GitHub Action runs the same check against the newest kit and opens

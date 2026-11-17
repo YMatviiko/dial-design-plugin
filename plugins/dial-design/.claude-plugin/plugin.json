@@ -1,7 +1,7 @@
 {
   "name": "dial-design",
   "displayName": "DIAL Design",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Claude Code skills for building UI with @epam/ai-dial-ui-kit 2.0. dial-design-vibecode writes production React code; dial-html-prototype makes standalone HTML mockups. Both start every screen from a DIAL page pattern, use only real 2.0 kit components (no hand-built copies, no legacy tokens) and check the result with a validator.",
   "author": {
     "name": "EPAM"

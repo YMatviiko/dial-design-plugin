@@ -22,6 +22,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadKitCss, suggest as kitSuggest, checkClassList, isIconClass } from '../../core/kit-rules.mjs';
+import { themeBlockCss } from '../../core/themes.mjs';
 
 function findUp(start, rel) {
   for (let d = start; ; d = dirname(d)) {
@@ -58,7 +59,8 @@ const manifestPath = cssPath.replace(/index\.css$/, 'components-manifest.json');
 const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : null;
 const componentNames = manifest ? new Set(manifest.components.map((c) => c.name)) : null;
 
-const { classes: kitClasses, vars: kitVars } = loadKitCss(cssPath);
+const { classes: kitClasses, vars: kitVars, fixedColour } = loadKitCss(cssPath);
+const THEME_CSS = themeBlockCss();
 const LAYOUT_SIZES = new Set(['width', 'min-width', 'max-width', 'height', 'min-height', 'max-height', 'flex-basis']);
 
 const NAMED_COLOURS = new Set(('aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen').split(' '));
@@ -115,6 +117,13 @@ for (const file of files) {
   // ---- own <style>: no class definitions, no @import, values checked
   for (const b of text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
     const start = b.index + b[0].indexOf('>') + 1;
+    // The generated theme block (kit-lookup.mjs theme block) is the one place theme variables may be declared;
+    // it must match the saved themes exactly.
+    if (/\bdata-kit-theme\b/.test(b[0].slice(0, b[0].indexOf('>')))) {
+      if (b[1].trim() !== THEME_CSS.trim())
+        add(start, 'error', 'theme-block-edited', 'The kit-theme block differs from the saved DIAL themes — don\'t edit it; rebuild the page (or paste a fresh "kit-lookup.mjs theme block").');
+      continue;
+    }
     const body = b[1].replace(/\/\*[\s\S]*?\*\//g, blank);
     for (const m of body.matchAll(/@import\b/g)) add(start + m.index, 'error', 'no-extra-css', '@import is not allowed — the kit stylesheet and Inter are the only CSS.');
     for (const r of body.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
@@ -149,7 +158,7 @@ for (const file of files) {
       .map((t) => ({ at: at + t.index, cls: t[0].replace(/&(amp|lt|gt|quot|#39);/g, (e) => entities[e]) })) // attribute values are HTML-escaped
       .filter((t) => !/[${}]/.test(t.cls)); // template placeholder
     const pos = new Map(tokens.map((t) => [t.cls, t.at]));
-    for (const f of checkClassList(tokens.map((t) => t.cls), { kitClasses, scope: 'html', where }))
+    for (const f of checkClassList(tokens.map((t) => t.cls), { kitClasses, fixedColour, scope: 'html', where }))
       add(pos.get(f.cls) ?? at, f.level, f.rule, f.msg);
   };
   const valueAt = (m, v) => m.index + m[0].lastIndexOf(v);
@@ -202,6 +211,13 @@ for (const file of files) {
   const ownJs = scripts.filter((s) => !/\bdata-kit-grid\b/.test(s[1])).map((s) => s[2]).join('\n');
   if (/\bdialGrid\s*\(/.test(ownJs) && !scripts.some((s) => /\bdata-kit-grid\b/.test(s[1])))
     add(0, 'error', 'grid-missing', 'dialGrid() is called but the kit-grid block is missing. Paste the output of "node kit-lookup.mjs grid" into <head> (or use the <!-- kit-grid --> marker in a template).');
+
+  // ---- theme block: light/dark asset pairs and the toggle need it
+  const hasThemeBlock = /<style\b[^>]*\bdata-kit-theme\b/i.test(text);
+  if (!hasThemeBlock && /data-theme-only=/.test(text))
+    add(0, 'error', 'theme-missing', 'Light/dark asset pairs (data-theme-only) without the kit-theme block — both versions show. Add <!-- kit-theme --> to the template\'s <head> (or paste "kit-lookup.mjs theme block").');
+  if (!hasThemeBlock)
+    add(0, 'warning', 'no-theme-block', 'No kit-theme block: the page shows kit fallback colours (close to, not exactly, the DIAL light theme) and can\'t switch to dark. Add <!-- kit-theme --> after <!-- kit-link -->.');
 
   // ---- stylesheets and fonts
   const links = [...text.matchAll(/<link\b[^>]*>/gi)].map((m) => {

@@ -9,6 +9,7 @@ Page templates built from the latest DIAL Chat 2.0 Figma designs. Prototypes cop
 | Marker | Becomes |
 |---|---|
 | `<!-- kit-link -->` | The kit stylesheet `<link>`, pinned to the installed version |
+| `<!-- kit-theme -->` | The DIAL light/dark themes (saved copy of ai-dial-chat-themes) + a theme toggle. Put it in `<head>` right after `kit-link`; every pattern has it. With it, `asset` markers whose art has a `-dark` twin emit both versions and the page shows the one for the current theme. Preview with `?theme=dark` |
 | `<!-- kit-grid -->` | The live kit Grid block (AG Grid + the kit's theme, `kit-lookup.mjs grid`). Put it in `<head>` after `kit-link`; then call `dialGrid()` from the page script |
 | `<!-- include: navigation … -->` | The shared left navigation (options below) |
 | `<!-- render: Name {"props":"json"} -->` | The real kit component, rendered now. One line |

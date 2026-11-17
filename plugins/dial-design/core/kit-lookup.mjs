@@ -11,9 +11,13 @@
 //   node kit-lookup.mjs render <Name> ['<json>']  the real component's HTML, rendered by the installed kit
 //   node kit-lookup.mjs render '[{"name":"…","props":{…}}, …]'   several at once
 //   node kit-lookup.mjs type <Name> [<Name> …]    a kit type: an interface's fields, an enum's members (e.g. DropdownItem, MenuItemMark)
+//   node kit-lookup.mjs theme [token <name…> | css | json | check]   DIAL light/dark themes (saved copy of ai-dial-chat-themes):
+//                                                 token values in both themes, the theme as CSS, the raw config, kit coverage
 //   node kit-lookup.mjs classes <regex>           which kit utility classes exist, with their CSS
 //   node kit-lookup.mjs icon <name> [size]        Tabler outline icon as inline SVG (kit style, stroke 1.5)
 //   node kit-lookup.mjs version                   installed kit version + the stylesheet <link> to paste
+//   node kit-lookup.mjs theme recipe [dir] [--public dir] [--force]   write the standalone-app theme recipe into a React project
+//   node kit-lookup.mjs theme block              the light/dark theme block + toggle for a prototype's <head> (or <!-- kit-theme -->)
 //   node kit-lookup.mjs grid                      the kit's Grid 2.0, live: AG Grid + kit theme block to paste in <head>
 //   node kit-lookup.mjs asset <name> [height]     a DIAL brand asset (logo, gradient icons) as an inline <img>
 //   node kit-lookup.mjs pattern <name> --source > page.tpl.html   copy a DIAL page template to edit
@@ -25,6 +29,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import * as T from './themes.mjs';
+import { loadKitCss } from './kit-rules.mjs';
 
 const KIT = '@epam/ai-dial-ui-kit';
 function findUp(start, rel) {
@@ -372,7 +380,11 @@ function assetDataUri(n) {
   const f = assetFile(n.split(':')[0]);
   return `data:image/${f.endsWith('.png') ? 'png' : 'svg+xml'};base64,${readFileSync(f).toString('base64')}`;
 }
-function asset(n, height, ret = false) {
+function hasAsset(n) { return ['svg', 'png'].some((ext) => existsSync(join(skillDir, 'assets', `${n}.${ext}`))); }
+// themed = the page has the theme block: an asset with a "-dark" twin is emitted as both, and the block shows one.
+function asset(n, height, ret = false, themed = false) {
+  if (themed && !n.endsWith('-dark') && hasAsset(`${n}-dark`))
+    return `${asset(n, height, true).replace('<img ', '<img data-theme-only="light" ')}${asset(`${n}-dark`, height, true).replace('<img ', '<img data-theme-only="dark" ')}`;
   const f = assetFile(n);
   let vw, vh;
   if (f.endsWith('.png')) { const b = readFileSync(f); vw = b.readUInt32BE(16); vh = b.readUInt32BE(20); }
@@ -454,7 +466,9 @@ async function pattern(n, source = false) {
     else if (notes.length) console.error(`${m[1]}: ${notes.join(' | ')}`);
     html = html.replace(m[0], () => results[i].html);
   });
-  html = html.replace(/<!-- asset: ([\w-]+)(?: (\d+))? -->/g, (_, a, h) => asset(a, h, true));
+  const themed = html.includes('<!-- kit-theme -->');
+  html = html.replace(/<!-- asset: ([\w-]+)(?: (\d+))? -->/g, (_, a, h) => asset(a, h, true, themed));
+  if (themed) { const block = await themeBlock(); html = html.replace('<!-- kit-theme -->', () => block); }
   html = html.replace(/<!-- icon: ([\w-]+) (\d+)(?: ([^>]*?))? -->/g, (_, i, sz, cls) => icon(i, sz, cls ?? '', true));
   html = html.replace('<!-- kit-link -->', `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/${KIT}@${kitVersion()}/dist/index.css">`);
   if (html.includes('<!-- kit-grid -->')) { const block = await grid(); html = html.replace('<!-- kit-grid -->', () => block); }
@@ -674,6 +688,108 @@ async function grid() {
   ].join('\n');
 }
 
+// ---------- themes: DIAL light/dark (saved copy of epam/ai-dial-chat-themes static/config.json)
+function themeInfo() {
+  const cfg = T.loadThemes(), src = T.loadSource();
+  console.log(`DIAL themes: saved copy of ${src.repo} (${src.file}) @ ${src.commit}, ${src.committed}`);
+  for (const t of cfg.themes) console.log(`  ${t.id.padEnd(6)} ${t.displayName.padEnd(6)} ${Object.keys(t.colors).length} colour tokens`);
+  console.log(`\nHow it switches: every colour token is written to <html> as --<token>; kit classes read var(--token).
+Kit token classes (bg-layer-*, text-*, border-*) switch on their own. Never branch on the theme for colours.
+  theme token <name…>   a token's light and dark value     theme css     the themes as CSS (:root / [data-theme="dark"])
+  theme check           kit tokens missing from a theme      theme json    the raw config (for a standalone app)
+  theme block           prototype <head> block + toggle (templates: <!-- kit-theme -->)`);
+}
+function themeToken(names) {
+  const cfg = T.loadThemes();
+  const light = T.theme(cfg, 'light'), dark = T.theme(cfg, 'dark');
+  for (const raw of names) {
+    const n = raw.replace(/^--/, '').replace(/^(bg|text|border)-/, (p) => p); // accept class-like names
+    const key = [n, n.replace(/^border-/, 'stroke-')].find((k) => k in light.colors || k in dark.colors);
+    if (!key) { const near = Object.keys(light.colors).filter((k) => k.includes(n.replace(/^(bg|text|border|stroke)-/, ''))).slice(0, 8); console.log(`${raw}: not a theme token.${near.length ? ` Close: ${near.join(', ')}` : ''}`); continue; }
+    console.log(`${key.padEnd(34)} light ${String(light.colors[key] ?? '—').padEnd(10)} dark ${dark.colors[key] ?? '—'}`);
+  }
+  console.log('\n(border-* classes read the stroke-* tokens.)');
+}
+function themeCheck() {
+  const cfg = T.loadThemes();
+  const css = readFileSync(join(needKit(), 'dist/index.css'), 'utf8');
+  const tokens = T.kitThemeTokens(css);
+  let gaps = 0;
+  for (const t of cfg.themes) {
+    const miss = T.uncovered(tokens, t);
+    if (miss.length) { gaps++; console.log(`theme "${t.id}" doesn't define ${miss.length} token(s) the kit uses (they keep the kit's light fallback): ${miss.join(', ')}`); }
+  }
+  const { fixedColour } = loadKitCss(join(needKit(), 'dist/index.css'));
+  console.log(`kit ${kitVersion()} reads ${tokens.length} theme tokens; ${gaps ? 'gaps above are theme-data issues: report them to the DS team (ai-dial-chat-themes)' : 'both themes cover all of them'}.`);
+  console.log(`kit classes with a fixed colour (same in both themes — avoid): ${[...fixedColour].join(', ') || 'none'}`);
+}
+async function themeBlock() {
+  const res = [];
+  await render([
+    { name: 'NeutralIconButton', props: { 'aria-label': 'Switch to dark theme', icon: '@icon:moon' } },
+    { name: 'NeutralIconButton', props: { 'aria-label': 'Switch to light theme', icon: '@icon:sun' } },
+  ], res);
+  const [toDark, toLight] = res.map((r) => r.html);
+  if (!toDark || !toLight) fail('theme block: the toggle buttons rendered nothing');
+  const src = T.loadSource();
+  return [
+    `<!-- kit-theme: DIAL light/dark themes from ${src.repo} @ ${src.commit}. Generated by kit-lookup.mjs theme block; don't edit, regenerate. ?theme=dark|light|system previews a theme; ?toggle=off hides the toggle. -->`,
+    `<style data-kit-theme>\n${T.themeBlockCss()}\n</style>`,
+    `<script data-kit-theme>\n${T.THEME_BLOCK_SCRIPT}\n</script>`,
+    `<template id="kit-theme-toggle"><div data-kit-theme-toggle><span data-theme-only="light" data-theme-set="dark">${toDark}</span><span data-theme-only="dark" data-theme-set="light">${toLight}</span></div></template>`,
+    `<!-- /kit-theme -->`,
+  ].join('\n');
+}
+// Writes the standalone-app recipe into the project (Claude Code blocks copying out of the plugin folder; node can).
+function themeRecipe(args) {
+  const force = args.includes('--force');
+  const pi = args.indexOf('--public');
+  const publicDir = pi >= 0 ? args[pi + 1] : 'public';
+  const dir = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--public') ?? 'src/theme';
+  const R = join(skillDir, 'themes', 'react');
+  const files = [
+    [join(R, 'dial-theme.ts'), join(dir, 'dial-theme.ts')],
+    [join(R, 'DialThemeProvider.tsx'), join(dir, 'DialThemeProvider.tsx')],
+    [T.THEMES_FILE, join(dir, 'dial-themes.json')],
+    [join(R, 'theme-init.js'), join(publicDir, 'theme-init.js')],
+  ];
+  const exists = files.filter(([, to]) => existsSync(to));
+  if (exists.length && !force) fail(`Not overwriting: ${exists.map(([, to]) => to).join(', ')}. Pass --force to replace them.`);
+  for (const [from, to] of files) {
+    execSync(`mkdir -p "${dirname(to)}"`);
+    writeFileSync(to, readFileSync(from));
+    console.log(`wrote ${to}`);
+  }
+  const src = T.loadSource();
+  console.log(`
+Theme data: ai-dial-chat-themes @ ${src.commit}. Next:
+  1. index.html <head>, before the app bundle:  <script src="/theme-init.js"></script>
+  2. wrap the app:  import themes from './theme/dial-themes.json';
+                    <DialThemeProvider config={themes}>…</DialThemeProvider>
+     (or configUrl={\`\${THEMES_CONFIG_HOST}/config.json\`} imagesHost={THEMES_CONFIG_HOST} for a live themes server)
+  3. tsconfig: "resolveJsonModule": true if the JSON import is rejected
+  4. theme choice in settings: Select Light / Dark / System → useDialTheme().setMode; logos → useDialTheme().image('…-logo')`);
+}
+
+async function themeUpdate() {
+  const r = await fetch(T.THEMES_URL, { signal: AbortSignal.timeout(20000) }).catch(() => null);
+  if (!r?.ok) fail(`Couldn't download ${T.THEMES_URL}`);
+  const text = await r.text();
+  const cfg = JSON.parse(text);
+  if (!T.theme(cfg, 'light') || !T.theme(cfg, 'dark')) fail('Downloaded config has no light/dark theme; not saved.');
+  let commit = 'main', committed = new Date().toISOString().slice(0, 10);
+  try {
+    const c = await (await fetch('https://api.github.com/repos/epam/ai-dial-chat-themes/commits?path=static/config.json&per_page=1', { signal: AbortSignal.timeout(20000) })).json();
+    commit = c[0].sha.slice(0, 7); committed = c[0].commit.committer.date.slice(0, 10);
+  } catch {}
+  const sha256 = createHash('sha256').update(text).digest('hex');
+  const old = T.loadSource();
+  if (old.sha256 === sha256) { console.log(`Saved themes are current (${old.commit}).`); return; }
+  writeFileSync(T.THEMES_FILE, text);
+  writeFileSync(T.SOURCE_FILE, JSON.stringify({ ...old, commit, committed, sha256 }, null, 2) + '\n');
+  console.log(`Saved themes updated ${old.commit} → ${commit} (${committed}). Run check-release.mjs, then note it in CHANGELOG.md.`);
+}
+
 // ---------- patterns: the list, built from each template's <!-- pattern-meta … --> line
 function patternMeta(f) {
   const m = readFileSync(f, 'utf8').match(/<!-- pattern-meta ([^>]*)-->/);
@@ -746,6 +862,14 @@ else if (cmd === 'icon' && a1) icon(a1, a2);
 else if (cmd === 'asset' && a1) asset(a1, a2);
 else if (cmd === 'pattern' && a1) await pattern(a1, a2 === '--source');
 else if (cmd === 'grid') console.log(await grid());
+else if (cmd === 'theme' && (!a1 || a1 === 'info')) themeInfo();
+else if (cmd === 'theme' && a1 === 'token' && a2) themeToken(process.argv.slice(4));
+else if (cmd === 'theme' && a1 === 'css') console.log(T.themeCss());
+else if (cmd === 'theme' && a1 === 'json') console.log(readFileSync(T.THEMES_FILE, 'utf8').trimEnd());
+else if (cmd === 'theme' && a1 === 'check') themeCheck();
+else if (cmd === 'theme' && a1 === 'block') console.log(await themeBlock());
+else if (cmd === 'theme' && a1 === 'update') await themeUpdate();
+else if (cmd === 'theme' && a1 === 'recipe') themeRecipe(process.argv.slice(4));
 else if (cmd === 'version') { const v = kitVersion(); console.log(v); console.log(`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/${KIT}@${v}/dist/index.css">`); }
 else {
   const src = readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1);

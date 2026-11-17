@@ -47,6 +47,8 @@ If nothing fits, say so, build from these rules, and list the screen as approxim
   `Select`, `Textarea`, `Switch`, `RadioGroup`…; a selected model/agent is `SelectedEntityCard`. Editors split into a
   metadata column and a configuration column.
 - **Empty states**: `NoDataContent`, never a hand-made message block.
+- **Light and dark**: every screen works in both (`<core>/themes.md`): kit token classes only, logos in both versions,
+  no styles picked by theme.
 - **Chat**: no header bar. Composer = one card with the text line on top and `+`, model picker and mic (send once
   filled) below; 700px on the start screen, 748px in a conversation, pinned at the bottom. User message right-aligned
   in a tinted bubble (`bg-layer-sunken`) with edit/delete under it; assistant answer with the model icon and rich

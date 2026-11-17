@@ -34,6 +34,8 @@ Work in a scratch folder with the kit installed (`mkdir -p /tmp/dial-work && cd 
 | New screen or area | Add a pattern (below) |
 | A new "never hand-build X" rule | Add an entry to `HAND_BUILT` in `core/kit-rules.mjs` (below) |
 | New kit release | `node check-release.mjs`; fix what fails; bump `checked-with-kit` |
+| Themes changed (ai-dial-chat-themes) | `K theme update` (refreshes `core/themes/config.json` + `SOURCE.json`), `check-release.mjs`; it fails if `foundations.md`'s token table is stale: update the values; note the commit in CHANGELOG |
+| New brand art | add `name.svg` and, if it is dark-on-transparent, `name-dark.svg` (light-on-transparent); `asset` markers switch them in themed pages |
 
 ## Add or update a pattern from Figma
 
@@ -50,7 +52,7 @@ Work in a scratch folder with the kit installed (`mkdir -p /tmp/dial-work && cd 
    the React skill too: whatever a pattern hand-builds, engineers will hand-build.
 5. Export gradient icons, logos and other non-token art into `core/assets/` (check for an existing file with the same
    art first; area-specific art is prefixed with the area).
-6. Header, right after the prototype label:
+6. Keep `<!-- kit-theme -->` right after `<!-- kit-link -->` (check-release fails without it). Header, right after the prototype label:
    `<!-- pattern-meta area="…" layout="<structure, in words both skills can match a new feature against>" checked-with-kit="<kit version>" -->`,
    then a comment naming the Figma file key, page and frame id.
 7. Build and validate:
@@ -58,7 +60,7 @@ Work in a scratch folder with the kit installed (`mkdir -p /tmp/dial-work && cd 
    K pattern <name> > /tmp/dial-work/<name>.html
    node <repo>/plugins/dial-design/skills/dial-html-prototype/validate-html.mjs /tmp/dial-work/<name>.html
    ```
-8. Screenshot at 1440×900 (and 1920×1080 if the frame is that size) and compare side by side with the Figma screenshot
+8. Screenshot at 1440×900 in light and dark (`?theme=dark&toggle=off`) (and 1920×1080 if the frame is that size) and compare side by side with the Figma screenshot
    until it matches. Show the user both images and get their approval before going on.
 9. If the pattern changes a layout rule (nav width, gutters, drawer width, card anatomy), update `core/layouts.md` too.
 
